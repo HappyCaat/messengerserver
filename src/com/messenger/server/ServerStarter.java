@@ -76,7 +76,6 @@ public class ServerStarter {
                     System.out.println("register - get name and password" + name + " -- " + password);
 
                     boolean result = registerInDm(name, password);
-                    // TODO actual
                     writer.println(result);
                     writer.flush();
 
