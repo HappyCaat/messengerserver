@@ -64,28 +64,69 @@ public class ServerStarter {
                     writer.flush();
 
                     break;
-                case "serverTime":
-                    writer.println(new Date().toString());
+                case "serverTime": {
+                    writer.println(new Date());
                     writer.flush();
                     break;
-                case "register":
+                }
 
+                case "register": {
                     String name = reader.readLine();
                     String password = reader.readLine();
 
-                    System.out.println("register - get name and password" + name + " -- " + password);
+                    System.out.println("register - get name and password: " + name + " -- " + password);
 
-                    boolean result = registerInDm(name, password);
+                    boolean result = addUserInDb(name, password);
 
                     writer.println(result);
                     writer.flush();
-
                     break;
+                }
+
+                case "login" : {
+                    String login = reader.readLine();
+                    String pass = reader.readLine();
+
+                    System.out.println("User with login: " + login);
+
+                    boolean answer = getUserFromDb(login, pass);
+                    writer.println(answer);
+                    writer.flush();
+                    break;
+                }
+
+                case "delete": {
+                    String login = reader.readLine();
+                    boolean isDelete = deleteUserFromDb(login);
+                    writer.println(isDelete);
+                    writer.flush();
+                    System.out.println("User " + login + " deleted");
+                    break;
+                }
+
             }
         }
     }
 
-    private static boolean registerInDm(String name, String password) {
+    private static boolean deleteUserFromDb(String login) {
+        try {
+            dbConnection.createStatement().executeUpdate("delete from users where name = \"" + login + "\" ");
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return true;
+    }
+
+    private static boolean getUserFromDb(String login, String pass) {
+        try {
+            dbConnection.createStatement().executeQuery("select name, password from users where name = \"" + login + "\" and password = \"" + pass + "\"");
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return true;
+    }
+
+    private static boolean addUserInDb(String name, String password) {
         if (isUserExisted(name)) {
             return false;
         }
