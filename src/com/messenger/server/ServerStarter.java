@@ -54,23 +54,13 @@ public class ServerStarter {
         while (true) {
             String command = reader.readLine();
             switch (command) {
-                case "calcSum":
-                    int numberA = Integer.valueOf(reader.readLine());
-                    int numberB = Integer.valueOf(reader.readLine());
-
-                    int sum = numberA + numberB;
-
-                    writer.println(sum);
-                    writer.flush();
-
-                    break;
                 case "serverTime": {
                     writer.println(new Date());
                     writer.flush();
                     break;
                 }
 
-                case "register": {
+                case "add": {
                     String name = reader.readLine();
                     String password = reader.readLine();
 
@@ -87,7 +77,7 @@ public class ServerStarter {
                     String login = reader.readLine();
                     String pass = reader.readLine();
 
-                    System.out.println("User with login: " + login);
+                    System.out.println("User with login " + login + "authorized");
 
                     boolean answer = getUserFromDb(login, pass);
                     writer.println(answer);
