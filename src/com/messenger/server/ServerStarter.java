@@ -5,6 +5,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.sql.*;
 import java.util.Date;
+import java.util.Random;
 
 public class ServerStarter {
 
@@ -26,7 +27,6 @@ public class ServerStarter {
 
                     readCommands(reader, writer);
 
-
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -47,6 +47,9 @@ public class ServerStarter {
 
             statement.executeUpdate("create table if not exists  messages (message_id INTEGER PRIMARY KEY ," +
                     " user VARCHAR, message TEXT);");
+
+            statement.executeUpdate("create table if not exists  tokens (tokens_id INTEGER PRIMARY KEY ," +
+                    " auth_token VARCHAR, login VARCHAR, password VARCHAR);");
 
         } catch (Throwable e) {
             throw new RuntimeException(e);
@@ -79,12 +82,12 @@ public class ServerStarter {
                 case "login": {
                     String login = reader.readLine();
                     String pass = reader.readLine();
-
+                    String token = createAuthToken();
+                    boolean isLogin = getUserFromDb(login, pass, token);
+                    writer.println(isLogin);
+                    writer.flush();
                     System.out.println("User with login " + login + "authorized");
 
-                    boolean answer = getUserFromDb(login, pass);
-                    writer.println(answer);
-                    writer.flush();
                     break;
                 }
 
@@ -131,10 +134,12 @@ public class ServerStarter {
         return true;
     }
 
-    private static boolean getUserFromDb(String login, String pass) {
+    private static boolean getUserFromDb(String login, String pass, String token) {
         try {
-            dbConnection.createStatement().executeQuery("select name, password from users where name = \"" + login + "\" and password = \"" + pass + "\"");
-        } catch (SQLException e) {
+            //dbConnection.createStatement().executeQuery("select name, password from users where name = \"" + login + "\" and password = \"" + pass + "\"");
+
+            dbConnection.createStatement().execute("insert into tokens (auth_token, login, password) values (\"" + token + "\",\"" + login + "\", \"" + pass + "\")");
+        } catch (SQLException e) { 
             throw new RuntimeException(e);
         }
         return true;
@@ -169,5 +174,16 @@ public class ServerStarter {
         } catch (Throwable e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private static String createAuthToken() {
+        String str = "abcdefghijklmnopqrstuvwxyz0123456789";
+        Random random = new Random();
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < 10; i++) {
+            int number = random.nextInt(36);
+            sb.append(str.charAt(number));
+        }
+        return sb.toString();
     }
 }
