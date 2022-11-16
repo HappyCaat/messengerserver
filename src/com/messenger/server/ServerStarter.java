@@ -41,9 +41,12 @@ public class ServerStarter {
             System.out.println("Starting init db");
             Class.forName("org.sqlite.JDBC");
             dbConnection = DriverManager.getConnection("jdbc:sqlite:test.db");
-            Statement stat = dbConnection.createStatement();
-            stat.executeUpdate("create table if not exists  users (user_id INTEGER PRIMARY KEY ," +
+            Statement statement = dbConnection.createStatement();
+            statement.executeUpdate("create table if not exists  users (user_id INTEGER PRIMARY KEY ," +
                     " name VARCHAR, password VARCHAR);");
+
+            statement.executeUpdate("create table if not exists  messages (message_id INTEGER PRIMARY KEY ," +
+                    " user VARCHAR, message TEXT);");
 
         } catch (Throwable e) {
             throw new RuntimeException(e);
@@ -73,7 +76,7 @@ public class ServerStarter {
                     break;
                 }
 
-                case "login" : {
+                case "login": {
                     String login = reader.readLine();
                     String pass = reader.readLine();
 
@@ -87,15 +90,36 @@ public class ServerStarter {
 
                 case "delete": {
                     String login = reader.readLine();
-                    boolean isDelete = deleteUserFromDb(login);
-                    writer.println(isDelete);
+                    boolean deleteUser = deleteUserFromDb(login);
+                    writer.println(deleteUser);
                     writer.flush();
                     System.out.println("User " + login + " deleted");
                     break;
                 }
 
+                case "message": {
+                    String userToSendMessage = reader.readLine();
+                    String textMessage = reader.readLine();
+                    boolean sendMessage = addMessageToDb(userToSendMessage, textMessage);
+                    writer.println(sendMessage);
+                    writer.flush();
+                    System.out.println("User with username " + userToSendMessage + " received message");
+                    break;
+                }
+
             }
         }
+    }
+
+    private static boolean addMessageToDb(String userToSendMessage, String textMessage) {
+        try {
+            dbConnection.createStatement().execute(
+                    "insert into messages (user, message) values (\"" + userToSendMessage + "\",\"" + textMessage + "\")"
+            );
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return true;
     }
 
     private static boolean deleteUserFromDb(String login) {
