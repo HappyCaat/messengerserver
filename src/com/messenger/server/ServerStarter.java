@@ -49,7 +49,7 @@ public class ServerStarter {
                     " user VARCHAR, message TEXT);");
 
             statement.executeUpdate("create table if not exists  tokens (tokens_id INTEGER PRIMARY KEY ," +
-                    " auth_token VARCHAR, login VARCHAR, password VARCHAR);");
+                    " user_id INTEGER, auth_token VARCHAR);");
 
         } catch (Throwable e) {
             throw new RuntimeException(e);
