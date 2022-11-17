@@ -139,7 +139,14 @@ public class ServerStarter {
             return false;
         }
         try {
-
+            ResultSet resultSet = dbConnection.createStatement()
+                            .executeQuery("select user_id from users where name = \"" + login + "\"");
+            while (resultSet.next()) {
+                if (resultSet.getString(login).equalsIgnoreCase(login)) {
+                        resultSet.close();
+                        return true;
+                }
+            }
             dbConnection.createStatement().execute("insert into tokens (user_id, auth_token) values (\"" + userId + "\",\"" + token + "\")");
         } catch (SQLException e) {
             throw new RuntimeException(e);
