@@ -86,7 +86,7 @@ public class ServerStarter {
                     boolean isLogin = getUserFromDb(login, pass, token);
                     writer.println(isLogin);
                     writer.flush();
-                    System.out.println("User with login " + login + "authorized");
+                    System.out.println("User with login " + login + " authorized");
 
                     break;
                 }
@@ -135,11 +135,13 @@ public class ServerStarter {
     }
 
     private static boolean getUserFromDb(String login, String pass, String token) {
+        if (!isLoginExisted(login, pass)) {
+            return false;
+        }
         try {
-            //dbConnection.createStatement().executeQuery("select name, password from users where name = \"" + login + "\" and password = \"" + pass + "\"");
 
-            dbConnection.createStatement().execute("insert into tokens (auth_token, login, password) values (\"" + token + "\",\"" + login + "\", \"" + pass + "\")");
-        } catch (SQLException e) { 
+            dbConnection.createStatement().execute("insert into tokens (user_id, auth_token) values (\"" + userId + "\",\"" + token + "\")");
+        } catch (SQLException e) {
             throw new RuntimeException(e);
         }
         return true;
@@ -159,6 +161,18 @@ public class ServerStarter {
         }
 
         return true;
+    }
+
+    private static boolean isLoginExisted(String name, String password) {
+        try {
+            ResultSet resultSet = dbConnection.createStatement()
+                    .executeQuery("select name, password from users where name = \"" + name + "\" and password = \"" + password + "\"");
+            boolean isExisted = resultSet.next();
+            resultSet.close();
+            return isExisted;
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private static boolean isUserExisted(String name) {
