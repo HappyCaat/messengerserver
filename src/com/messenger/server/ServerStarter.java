@@ -84,14 +84,20 @@ public class ServerStarter {
                     String login = reader.readLine();
                     String pass = reader.readLine();
                     String token = createAuthToken();
+                    System.out.println("__________________");
                     System.out.println("login = " + login);
                     System.out.println("password = " + pass);
                     System.out.println("token = " + token);
                     int userId = getUserIdFromTable(login, pass);
                     System.out.println("userId = " + userId);
                     boolean tryCreateNewTokenInTable = tryInsertInToTokenTable(userId, token);
-                    System.out.println("User with login " + login + " authorized ");
+                    if (userId == 0) {
+                        System.out.println("Invalid login or password, try again");
+                    } else {
+                        System.out.println("User with login " + login + " authorized ");
+                    }
                     writer.println(tryCreateNewTokenInTable);
+                    writer.println(token);
                     writer.flush();
                     break;
                 }
