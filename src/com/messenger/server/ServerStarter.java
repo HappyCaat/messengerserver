@@ -3,6 +3,7 @@ package com.messenger.server;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.security.SecureRandom;
 import java.sql.*;
 import java.util.Date;
 import java.util.Random;
@@ -83,11 +84,15 @@ public class ServerStarter {
                     String login = reader.readLine();
                     String pass = reader.readLine();
                     String token = createAuthToken();
-                    boolean isLogin = getUserFromDb(login, pass, token);
-                    writer.println(isLogin);
+                    System.out.println("login = " + login);
+                    System.out.println("password = " + pass);
+                    System.out.println("token = " + token);
+                    int userId = getUserIdFromTable(login, pass);
+                    System.out.println("userId = " + userId);
+                    boolean tryCreateNewTokenInTable = tryInsertInToTokenTable(userId, token);
+                    System.out.println("User with login " + login + " authorized ");
+                    writer.println(tryCreateNewTokenInTable);
                     writer.flush();
-                    System.out.println("User with login " + login + " authorized");
-
                     break;
                 }
 
@@ -134,20 +139,29 @@ public class ServerStarter {
         return true;
     }
 
-    private static boolean getUserFromDb(String login, String pass, String token) {
-        if (!isLoginExisted(login, pass)) {
-            return false;
-        }
+    private static int getUserIdFromTable(String login, String pass) {
+        int userId = 0;
         try {
             ResultSet resultSet = dbConnection.createStatement()
-                            .executeQuery("select user_id from users where name = \"" + login + "\"");
+                    .executeQuery("select * from users where name = \"" + login + "\" and password = \"" + pass + "\"");
             while (resultSet.next()) {
-                if (resultSet.getString(login).equalsIgnoreCase(login)) {
-                        resultSet.close();
-                        return true;
-                }
+                userId = resultSet.getInt(1);
             }
-            dbConnection.createStatement().execute("insert into tokens (user_id, auth_token) values (\"" + userId + "\",\"" + token + "\")");
+            resultSet.close();
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return userId;
+    }
+
+    private static boolean tryInsertInToTokenTable(int userId, String token) {
+        String query = "INSERT INTO tokens (user_id, auth_token) VALUES (?, ?)";
+        try {
+            PreparedStatement preparedStatement = dbConnection.prepareStatement(query);
+            preparedStatement.setInt(1, userId);
+            preparedStatement.setString(2,token);
+            preparedStatement.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
@@ -170,18 +184,6 @@ public class ServerStarter {
         return true;
     }
 
-    private static boolean isLoginExisted(String name, String password) {
-        try {
-            ResultSet resultSet = dbConnection.createStatement()
-                    .executeQuery("select name, password from users where name = \"" + name + "\" and password = \"" + password + "\"");
-            boolean isExisted = resultSet.next();
-            resultSet.close();
-            return isExisted;
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
     private static boolean isUserExisted(String name) {
         try {
             ResultSet resultSet = dbConnection.createStatement()
@@ -199,7 +201,7 @@ public class ServerStarter {
 
     private static String createAuthToken() {
         String str = "abcdefghijklmnopqrstuvwxyz0123456789";
-        Random random = new Random();
+        SecureRandom random = new SecureRandom();
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < 10; i++) {
             int number = random.nextInt(36);
