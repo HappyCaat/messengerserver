@@ -88,17 +88,24 @@ public class ServerStarter {
                     System.out.println("login = " + login);
                     System.out.println("password = " + pass);
                     System.out.println("token = " + token);
-                    int userId = getUserIdFromTable(login, pass);
-                    System.out.println("userId = " + userId);
-                    boolean tryCreateNewTokenInTable = tryInsertInToTokenTable(userId, token);
-                    if (userId == 0) {
-                        System.out.println("Invalid login or password, try again");
+                    Integer userId = getUserIdFromTable(login, pass);
+                    if (userId == null) {
+                        System.out.println("Invalid login or password!");
+                        writer.println("Invalid login or password!");
+                        writer.flush();
                     } else {
+                        System.out.println("userId = " + userId);
+                        System.out.println("------------------");
+                        boolean tryCreateNewTokenInTable = tryInsertInToTokenTable(userId, token);
+
                         System.out.println("User with login " + login + " authorized ");
+
+                        writer.println(tryCreateNewTokenInTable);
+                        String userIdStr = userId.toString();
+                        writer.println(userIdStr);
+                        writer.println(token);
+                        writer.flush();
                     }
-                    writer.println(tryCreateNewTokenInTable);
-                    writer.println(token);
-                    writer.flush();
                     break;
                 }
 
@@ -145,8 +152,8 @@ public class ServerStarter {
         return true;
     }
 
-    private static int getUserIdFromTable(String login, String pass) {
-        int userId = 0;
+    private static Integer getUserIdFromTable(String login, String pass) {
+        Integer userId = null;
         try {
             ResultSet resultSet = dbConnection.createStatement()
                     .executeQuery("select * from users where name = \"" + login + "\" and password = \"" + pass + "\"");
@@ -154,20 +161,20 @@ public class ServerStarter {
                 userId = resultSet.getInt(1);
             }
             resultSet.close();
-
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
         return userId;
     }
 
-    private static boolean tryInsertInToTokenTable(int userId, String token) {
+    private static boolean tryInsertInToTokenTable(Integer userId, String token) {
         String query = "INSERT INTO tokens (user_id, auth_token) VALUES (?, ?)";
         try {
             PreparedStatement preparedStatement = dbConnection.prepareStatement(query);
             preparedStatement.setInt(1, userId);
             preparedStatement.setString(2,token);
             preparedStatement.executeUpdate();
+
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
