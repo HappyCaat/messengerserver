@@ -47,7 +47,7 @@ public class ServerStarter {
                     " name VARCHAR, password VARCHAR);");
 
             statement.executeUpdate("create table if not exists  messages (message_id INTEGER PRIMARY KEY ," +
-                    " user VARCHAR, message TEXT);");
+                    " user_id INTEGER, token VARCHAR, message TEXT);");
 
             statement.executeUpdate("create table if not exists  tokens (tokens_id INTEGER PRIMARY KEY ," +
                     " user_id INTEGER, auth_token VARCHAR);");
@@ -120,23 +120,29 @@ public class ServerStarter {
 
                 case "message": {
                     String userToSendMessage = reader.readLine();
+                    String userIdStr = reader.readLine();
+                    int userId = Integer.parseInt(userIdStr);
                     String textMessage = reader.readLine();
-                    boolean sendMessage = addMessageToDb(userToSendMessage, textMessage);
+                    String token = reader.readLine();
+                    System.out.println("Message sent");
+                    boolean sendMessage = addMessageToDb(userId, token, textMessage);
                     writer.println(sendMessage);
                     writer.flush();
-                    System.out.println("User with username " + userToSendMessage + " received message");
+                    System.out.println("User " + userToSendMessage + " received message");
                     break;
                 }
-
             }
         }
     }
 
-    private static boolean addMessageToDb(String userToSendMessage, String textMessage) {
+    private static boolean addMessageToDb(Integer userId, String token, String textMessage) {
+        String query = "INSERT INTO messages (user_id, token, message) VALUES (?, ?, ?)";
         try {
-            dbConnection.createStatement().execute(
-                    "insert into messages (user, message) values (\"" + userToSendMessage + "\",\"" + textMessage + "\")"
-            );
+            PreparedStatement preparedStatement = dbConnection.prepareStatement(query);
+            preparedStatement.setInt(1, userId);
+            preparedStatement.setString(2, token);
+            preparedStatement.setString(3, textMessage);
+            preparedStatement.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
@@ -172,9 +178,8 @@ public class ServerStarter {
         try {
             PreparedStatement preparedStatement = dbConnection.prepareStatement(query);
             preparedStatement.setInt(1, userId);
-            preparedStatement.setString(2,token);
+            preparedStatement.setString(2, token);
             preparedStatement.executeUpdate();
-
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
