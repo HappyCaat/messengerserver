@@ -47,7 +47,7 @@ public class ServerStarter {
                     " name VARCHAR, password VARCHAR);");
 
             statement.executeUpdate("create table if not exists  messages (message_id INTEGER PRIMARY KEY ," +
-                    " user_id INTEGER, token VARCHAR, message TEXT);");
+                    " from_user_id INTEGER, to_user_id VARCHAR, message TEXT);");
 
             statement.executeUpdate("create table if not exists  tokens (tokens_id INTEGER PRIMARY KEY ," +
                     " user_id INTEGER, auth_token VARCHAR);");
@@ -120,12 +120,13 @@ public class ServerStarter {
 
                 case "message": {
                     String userToSendMessage = reader.readLine();
-                    String userIdStr = reader.readLine();
-                    int userId = Integer.parseInt(userIdStr);
-                    String textMessage = reader.readLine();
+                    int toUserId = getUserIdForSendMessage(userToSendMessage);
+                    String fromUserIdStr = reader.readLine();
+                    int fromUserId = Integer.parseInt(fromUserIdStr);
                     String token = reader.readLine();
+                    String textMessage = reader.readLine();
                     System.out.println("Message sent");
-                    boolean sendMessage = addMessageToDb(userId, token, textMessage);
+                    boolean sendMessage = addMessageToDb(fromUserId, toUserId, textMessage);
                     writer.println(sendMessage);
                     writer.flush();
                     System.out.println("User " + userToSendMessage + " received message");
@@ -135,12 +136,27 @@ public class ServerStarter {
         }
     }
 
-    private static boolean addMessageToDb(Integer userId, String token, String textMessage) {
-        String query = "INSERT INTO messages (user_id, token, message) VALUES (?, ?, ?)";
+    public static int getUserIdForSendMessage (String userToSendMessage) {
+        int toUserId = 0;
+        String query = "SELECT user_id FROM users WHERE name = name";
+        try {
+            ResultSet resultSet = dbConnection.createStatement()
+                    .executeQuery("select * from users where name = \"" + userToSendMessage + "\"");
+            while (resultSet.next()) {
+                toUserId = resultSet.getInt(1);
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return toUserId;
+    }
+
+    private static boolean addMessageToDb(Integer fromUserId, Integer toUserId, String textMessage) {
+        String query = "INSERT INTO messages (from_user_id, to_user_id, message) VALUES (?, ?, ?)";
         try {
             PreparedStatement preparedStatement = dbConnection.prepareStatement(query);
-            preparedStatement.setInt(1, userId);
-            preparedStatement.setString(2, token);
+            preparedStatement.setInt(1, fromUserId);
+            preparedStatement.setInt(2, toUserId);
             preparedStatement.setString(3, textMessage);
             preparedStatement.executeUpdate();
         } catch (SQLException e) {
