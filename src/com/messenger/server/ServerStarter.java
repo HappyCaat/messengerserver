@@ -6,7 +6,6 @@ import java.net.Socket;
 import java.security.SecureRandom;
 import java.sql.*;
 import java.util.Date;
-import java.util.Random;
 
 public class ServerStarter {
 
@@ -22,11 +21,20 @@ public class ServerStarter {
                 try {
                     Socket socket = serverSocket.accept();
 
-                    System.out.println("new client connected " + socket.getInetAddress());
-                    BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                    PrintWriter writer = new PrintWriter(socket.getOutputStream());
+                    new Thread(() -> {
+                        System.out.println("new client connected " + socket.getInetAddress());
 
-                    readCommands(reader, writer);
+                        try {
+                            BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                            PrintWriter writer = new PrintWriter(socket.getOutputStream());
+
+                            readCommands(reader, writer);
+                        } catch (Throwable e) {
+                            e.printStackTrace();
+                            System.err.println(" ! Finish handle input connection with error " + e);
+                        }
+                    }).start();
+
 
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -67,7 +75,7 @@ public class ServerStarter {
                     break;
                 }
 
-                case "add": {
+                case "register": {
                     String name = reader.readLine();
                     String password = reader.readLine();
 
@@ -118,8 +126,7 @@ public class ServerStarter {
                     break;
                 }
 
-                case "send_message": {
-                    writer.flush();
+                case "sendMessage": {
                     String userToSendMessage = reader.readLine();
                     if (!isUserExisted(userToSendMessage)) {
                         System.out.println("User not found");
@@ -128,12 +135,9 @@ public class ServerStarter {
                         writer.flush();
                         break;
                     }
-                    writer.flush();
                     String fromUserIdStr = reader.readLine();
                     int fromUserId = Integer.parseInt(fromUserIdStr);
-                    writer.flush();
                     String textMessage = reader.readLine();
-                    writer.flush();
                     String token = reader.readLine();
                     if (checkedAuthToken(token)) {
                         int toUserId = getUserIdForSendMessage(userToSendMessage);
@@ -142,8 +146,7 @@ public class ServerStarter {
                         writer.println(sendMessage);
                         writer.flush();
                         System.out.println("User " + userToSendMessage + " received message");
-                    }
-                    else {
+                    } else {
                         System.out.println("User not authorized!");
                         String answer = "User not authorized! Please enter login and password, and try again";
                         writer.println(answer);
@@ -151,14 +154,45 @@ public class ServerStarter {
                     }
                     break;
                 }
+                case "getUser": {
+                    writer.flush();
+                    String userIdStr = reader.readLine();
+                    int userId = Integer.parseInt(userIdStr);
+                    writer.flush();
+                    String token = reader.readLine();
+                    if (checkedAuthToken(token)) {
+                        System.out.println(getUserNameById(userId));
+
+                    }
+                    break;
+                }
             }
         }
     }
 
-    public static boolean checkedAuthToken (String token) {
+    private static String getUserNameById(int userId) {
+        String userNameById = "";
+        try {
+            String sqlQuery = "select name from users where user_id = " + userId;
+            System.out.println("query:" + sqlQuery);
+            ResultSet resultSet = dbConnection.createStatement()
+                    .executeQuery(sqlQuery);
+            System.out.println(resultSet);
+            while (resultSet.next()) {
+                userNameById = resultSet.getString(1);
+                System.out.println(userNameById);
+            }
+            resultSet.close();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return userNameById;
+    }
+
+    private static boolean checkedAuthToken(String token) {
         try {
             ResultSet resultSet = dbConnection.createStatement().executeQuery("select * from tokens where auth_token = \"" + token + "\"  ");
-           boolean isExisted = resultSet.next();
+            boolean isExisted = resultSet.next();
             resultSet.close();
             return isExisted;
         } catch (SQLException e) {
@@ -166,7 +200,7 @@ public class ServerStarter {
         }
     }
 
-    public static int getUserIdForSendMessage (String userToSendMessage) {
+    private static int getUserIdForSendMessage(String userToSendMessage) {
         int toUserId = 0;
         try {
             ResultSet resultSet = dbConnection.createStatement()
