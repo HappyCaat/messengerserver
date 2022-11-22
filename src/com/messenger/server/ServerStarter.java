@@ -118,33 +118,63 @@ public class ServerStarter {
                     break;
                 }
 
-                case "message": {
+                case "send_message": {
+                    writer.flush();
                     String userToSendMessage = reader.readLine();
-                    int toUserId = getUserIdForSendMessage(userToSendMessage);
+                    if (!isUserExisted(userToSendMessage)) {
+                        System.out.println("User not found");
+                        boolean userExisted = false;
+                        writer.println(userExisted);
+                        writer.flush();
+                        break;
+                    }
+                    writer.flush();
                     String fromUserIdStr = reader.readLine();
                     int fromUserId = Integer.parseInt(fromUserIdStr);
-                    String token = reader.readLine();
-                    String textMessage = reader.readLine();
-                    System.out.println("Message sent");
-                    boolean sendMessage = addMessageToDb(fromUserId, toUserId, textMessage);
-                    writer.println(sendMessage);
                     writer.flush();
-                    System.out.println("User " + userToSendMessage + " received message");
+                    String textMessage = reader.readLine();
+                    writer.flush();
+                    String token = reader.readLine();
+                    if (checkedAuthToken(token)) {
+                        int toUserId = getUserIdForSendMessage(userToSendMessage);
+                        System.out.println("Message sent");
+                        boolean sendMessage = addMessageToDb(fromUserId, toUserId, textMessage);
+                        writer.println(sendMessage);
+                        writer.flush();
+                        System.out.println("User " + userToSendMessage + " received message");
+                    }
+                    else {
+                        System.out.println("User not authorized!");
+                        String answer = "User not authorized! Please enter login and password, and try again";
+                        writer.println(answer);
+                        writer.flush();
+                    }
                     break;
                 }
             }
         }
     }
 
+    public static boolean checkedAuthToken (String token) {
+        try {
+            ResultSet resultSet = dbConnection.createStatement().executeQuery("select * from tokens where auth_token = \"" + token + "\"  ");
+           boolean isExisted = resultSet.next();
+            resultSet.close();
+            return isExisted;
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     public static int getUserIdForSendMessage (String userToSendMessage) {
         int toUserId = 0;
-        String query = "SELECT user_id FROM users WHERE name = name";
         try {
             ResultSet resultSet = dbConnection.createStatement()
                     .executeQuery("select * from users where name = \"" + userToSendMessage + "\"");
             while (resultSet.next()) {
                 toUserId = resultSet.getInt(1);
             }
+            resultSet.close();
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
@@ -159,6 +189,7 @@ public class ServerStarter {
             preparedStatement.setInt(2, toUserId);
             preparedStatement.setString(3, textMessage);
             preparedStatement.executeUpdate();
+            preparedStatement.close();
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
