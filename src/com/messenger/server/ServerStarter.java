@@ -161,12 +161,13 @@ public class ServerStarter {
                     String token = reader.readLine();
                     System.out.println("Token is " + checkedAuthToken(token));
                     if (checkedAuthToken(token)) {
-                        System.out.println("Username: " + getUserNameById(userId));
-                        if (getUserNameById(userId) != null) {
+                        String getUsernameById = getUserNameById(userId);
+                        System.out.println("Username: " + getUsernameById);
+                        if (getUsernameById != null) {
                             writer.println(getUserNameById(userId));
                             writer.flush();
                         } else {
-                            String answer = "Not found user";
+                            String answer = "not found user";
                             writer.println(answer);
                             writer.flush();
                         }
@@ -196,7 +197,7 @@ public class ServerStarter {
     }
 
     private static String getUserNameById(int userId) {
-        String userNameById = "";
+        String userNameById = null;
         try {
             String sqlQuery = "select name from users where user_id = " + userId;
             ResultSet resultSet = dbConnection.createStatement()
