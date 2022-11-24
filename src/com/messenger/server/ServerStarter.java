@@ -154,7 +154,7 @@ public class ServerStarter {
                     }
                     break;
                 }
-                case "getUser": {
+                case "getUserById": {
                     writer.flush();
                     String userIdStr = reader.readLine();
                     int userId = Integer.parseInt(userIdStr);
