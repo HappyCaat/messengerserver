@@ -69,13 +69,13 @@ public class ServerStarter {
         while (true) {
             String command = reader.readLine();
             switch (command) {
-                case "serverTime": {
+                case "/serverTime": {
                     writer.println(new Date());
                     writer.flush();
                     break;
                 }
 
-                case "register": {
+                case "/register": {
                     String name = reader.readLine();
                     String password = reader.readLine();
 
@@ -88,7 +88,7 @@ public class ServerStarter {
                     break;
                 }
 
-                case "login": {
+                case "/login": {
                     String login = reader.readLine();
                     String pass = reader.readLine();
                     String token = createAuthToken();
@@ -117,7 +117,7 @@ public class ServerStarter {
                     break;
                 }
 
-                case "delete": {
+                case "/delete": {
                     String login = reader.readLine();
                     boolean deleteUser = deleteUserFromDb(login);
                     writer.println(deleteUser);
@@ -126,7 +126,7 @@ public class ServerStarter {
                     break;
                 }
 
-                case "sendMessage": {
+                case "/sendMessage": {
                     String userToSendMessage = reader.readLine();
                     String textMessage = reader.readLine();
                     String token = reader.readLine();
@@ -154,7 +154,7 @@ public class ServerStarter {
                     }
                     break;
                 }
-                case "getUserById": {
+                case "/getUserById": {
                     writer.flush();
                     String userIdStr = reader.readLine();
                     int userId = Integer.parseInt(userIdStr);
@@ -174,7 +174,7 @@ public class ServerStarter {
                     }
                     break;
                 }
-                case "getUserByLogin": {
+                case "/getUserByLogin": {
                     writer.flush();
                     String userName = reader.readLine();
                     String token = reader.readLine();
@@ -326,14 +326,12 @@ public class ServerStarter {
             return false;
         }
         try {
-            dbConnection.createStatement().execute(
-                    "insert into users (name, password) values (\"" + name + "\",\"" + password + "\")"
+            dbConnection.createStatement()
+                    .execute("insert into users (name, password) values (\"" + name + "\",\"" + password + "\")"
             );
-
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-
         return true;
     }
 
