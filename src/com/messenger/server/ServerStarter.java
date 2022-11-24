@@ -167,12 +167,30 @@ public class ServerStarter {
                             writer.println(getUserNameById(userId));
                             writer.flush();
                         } else {
-                            String answer = "not found user";
+                            String answer = "User not found";
                             writer.println(answer);
                             writer.flush();
                         }
                     }
+                    break;
+                }
+                case "getUserByLogin": {
+                    writer.flush();
+                    String userName = reader.readLine();
+                    String token = reader.readLine();
+                    if(checkedAuthToken(token)) {
+                        String getUserNameByLogin = getUserNameByLogin(userName);
+                        System.out.println("Username: " + getUserNameByLogin);
+                        if (getUserNameByLogin != null) {
+                            writer.println(getUserNameByLogin(userName));
+                            writer.flush();
+                        } else {
+                            String answer = "User not found";
+                            writer.println(answer);
+                            writer.flush();
+                        }
 
+                    }
                     break;
                 }
             }
@@ -194,6 +212,19 @@ public class ServerStarter {
         }
         return fromUserId;
 
+    }
+    private static String getUserNameByLogin(String userName) {
+        String userNameByLogin = null;
+        try {
+            ResultSet resultSet = dbConnection.createStatement()
+                    .executeQuery("select name from users where name = \"" + userName + "\"");
+            while(resultSet.next()) {
+                userNameByLogin = resultSet.getString(1);
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return userNameByLogin;
     }
 
     private static String getUserNameById(int userId) {
