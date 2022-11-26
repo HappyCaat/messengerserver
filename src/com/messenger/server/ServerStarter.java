@@ -5,11 +5,16 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.security.SecureRandom;
 import java.sql.*;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 public class ServerStarter {
 
     private static Connection dbConnection;
+    private static List<String> getMessageList = new ArrayList<>();
+    private static Socket socket;
 
     public static void main(String[] args) {
 
@@ -19,7 +24,7 @@ public class ServerStarter {
             System.out.println("server started");
             while (true) {
                 try {
-                    Socket socket = serverSocket.accept();
+                    socket = serverSocket.accept();
 
                     new Thread(() -> {
                         System.out.println("new client connected " + socket.getInetAddress());
@@ -55,7 +60,7 @@ public class ServerStarter {
                     " name VARCHAR, password VARCHAR);");
 
             statement.executeUpdate("create table if not exists  messages (message_id INTEGER PRIMARY KEY ," +
-                    " from_user_id INTEGER, to_user_id VARCHAR, message TEXT);");
+                    " from_user_id INTEGER, to_user_id INTEGER, message TEXT, date VARCHAR);");
 
             statement.executeUpdate("create table if not exists  tokens (tokens_id INTEGER PRIMARY KEY ," +
                     " user_id INTEGER, auth_token VARCHAR);");
@@ -70,7 +75,7 @@ public class ServerStarter {
             String command = reader.readLine();
             switch (command) {
                 case "/serverTime": {
-                    writer.println(new Date());
+                    writer.println(getDate());
                     writer.flush();
                     break;
                 }
@@ -104,7 +109,7 @@ public class ServerStarter {
                     } else {
                         System.out.println("userId = " + userId);
                         System.out.println("------------------");
-                        boolean tryCreateNewTokenInTable = tryInsertInToTokenTable(userId, token);
+                        boolean tryCreateNewTokenInTable = insertTokenInDb(userId, token);
 
                         System.out.println("User with login " + login + " authorized ");
 
@@ -129,6 +134,7 @@ public class ServerStarter {
                 case "/sendMessage": {
                     String userToSendMessage = reader.readLine();
                     String textMessage = reader.readLine();
+                    String date = reader.readLine();
                     String token = reader.readLine();
                     int fromUserId = getUserIdFromSendMessage(token);
                     if (!isUserExisted(userToSendMessage)) {
@@ -138,11 +144,10 @@ public class ServerStarter {
                         writer.flush();
                         break;
                     }
-
                     if (checkedAuthToken(token)) {
                         int toUserId = getUserIdForSendMessage(userToSendMessage);
                         System.out.println("Message sent");
-                        boolean sendMessage = addMessageToDb(fromUserId, toUserId, textMessage);
+                        boolean sendMessage = addMessageToDb(fromUserId, toUserId, textMessage, date);
                         writer.println(sendMessage);
                         writer.flush();
                         System.out.println("User " + userToSendMessage + " received message");
@@ -154,6 +159,28 @@ public class ServerStarter {
                     }
                     break;
                 }
+
+                case "/readMessages": {
+                    String getMessageFromClient = reader.readLine();
+                    String token = reader.readLine();
+                    Integer userId = getUserIdByAuthToken(token);
+                    if (checkedAuthToken(token)){
+                        getMessages(userId,getMessageFromClient);
+                        try {
+                            ObjectOutputStream objectOutputStream = new ObjectOutputStream(socket.getOutputStream());
+                            objectOutputStream.writeObject(getMessageList);
+                        }
+                        catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    } else {
+                        String answer = "User not found";
+                        writer.println(answer);
+                        writer.flush();
+                    }
+                    break;
+                }
+
                 case "/getUserById": {
                     writer.flush();
                     String userIdStr = reader.readLine();
@@ -174,6 +201,7 @@ public class ServerStarter {
                     }
                     break;
                 }
+
                 case "/getUserByLogin": {
                     writer.flush();
                     String userName = reader.readLine();
@@ -189,7 +217,6 @@ public class ServerStarter {
                             writer.println(answer);
                             writer.flush();
                         }
-
                     }
                     break;
                 }
@@ -197,16 +224,31 @@ public class ServerStarter {
         }
     }
 
+    private static List<String> getMessages (int toUserId, String date) {
+
+        String query = "SELECT message FROM messages WHERE to_user_id =" + toUserId + "AND date =" + date;
+        try {
+            ResultSet resultSet = dbConnection.createStatement()
+                    .executeQuery("select message from messages where to_user_id = \"" + toUserId + "\" and date = \"" + date + "\"");
+            while(resultSet.next()) {
+                getMessageList.add(resultSet.getString("message"));
+            }
+            resultSet.close();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return getMessageList;
+    }
+
     private static int getUserIdFromSendMessage(String token) {
         int fromUserId = 0;
-        ResultSet resultSet = null;
         try {
-            resultSet = dbConnection.createStatement()
+           ResultSet resultSet = dbConnection.createStatement()
                     .executeQuery("select user_id from tokens where auth_token = \"" + token + "\"");
             while (resultSet.next()) {
                 fromUserId = resultSet.getInt(1);
-
             }
+            resultSet.close();
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
@@ -221,6 +263,7 @@ public class ServerStarter {
             while(resultSet.next()) {
                 userNameByLogin = resultSet.getString(1);
             }
+            resultSet.close();
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
@@ -241,6 +284,21 @@ public class ServerStarter {
             throw new RuntimeException(e);
         }
         return userNameById;
+    }
+    private static Integer getUserIdByAuthToken(String token) {
+        Integer getUserByToken = null;
+        //String query = "SELECT user_id FROM tokens WHERE auth_token = " + token;
+        try {
+            ResultSet resultSet = dbConnection.createStatement()
+                    .executeQuery("select user_id from tokens where auth_token =\"" + token + "\"");
+            while (resultSet.next()) {
+                getUserByToken = resultSet.getInt(1);
+            }
+            resultSet.close();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return getUserByToken;
     }
 
     private static boolean checkedAuthToken(String token) {
@@ -269,13 +327,14 @@ public class ServerStarter {
         return toUserId;
     }
 
-    private static boolean addMessageToDb(int fromUserId, Integer toUserId, String textMessage) {
-        String query = "INSERT INTO messages (from_user_id, to_user_id, message) VALUES (?, ?, ?)";
+    private static boolean addMessageToDb(int fromUserId, Integer toUserId, String textMessage, String date) {
+        String query = "INSERT INTO messages (from_user_id, to_user_id, message, date) VALUES (?, ?, ?, ?)";
         try {
             PreparedStatement preparedStatement = dbConnection.prepareStatement(query);
             preparedStatement.setInt(1, fromUserId);
             preparedStatement.setInt(2, toUserId);
             preparedStatement.setString(3, textMessage);
+            preparedStatement.setString(4,date);
             preparedStatement.executeUpdate();
             preparedStatement.close();
         } catch (SQLException e) {
@@ -308,7 +367,7 @@ public class ServerStarter {
         return userId;
     }
 
-    private static boolean tryInsertInToTokenTable(Integer userId, String token) {
+    private static boolean insertTokenInDb(Integer userId, String token) {
         String query = "INSERT INTO tokens (user_id, auth_token) VALUES (?, ?)";
         try {
             PreparedStatement preparedStatement = dbConnection.prepareStatement(query);
@@ -359,5 +418,9 @@ public class ServerStarter {
             sb.append(str.charAt(number));
         }
         return sb.toString();
+    }
+    private static String getDate(){
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy.MM.dd");
+       return dateFormat.format(new Date());
     }
 }
