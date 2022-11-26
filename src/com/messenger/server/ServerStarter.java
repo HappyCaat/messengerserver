@@ -9,7 +9,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 
-@SuppressWarnings({"SqlNoDataSourceInspection", "ForLoopReplaceableByForEach"})
+@SuppressWarnings({"SqlNoDataSourceInspection", "ForLoopReplaceableByForEach", "InfiniteLoopStatement", "resource"})
 public class ServerStarter {
 
     private static Connection dbConnection;
@@ -73,70 +73,55 @@ public class ServerStarter {
         while (true) {
             String command = reader.readLine();
             switch (command) {
-                case "/serverTime": {
+                case "/serverTime" -> {
                     writer.println(getDate());
                     writer.flush();
-                    break;
                 }
-
-                case "/register": {
-                    String name = reader.readLine();
+                case "/register" -> {
+                    String login = reader.readLine();
                     String password = reader.readLine();
-
-                    System.out.println("register - get name and password: " + name + " -- " + password);
-
-                    boolean result = addUserInDb(name, password);
-
+                    System.out.println("register - get name and password: " + login + " -- " + password);
+                    boolean result = addUserInDb(login, password);
                     writer.println(result);
                     writer.flush();
-                    break;
                 }
-
-                case "/login": {
+                case "/login" -> {
                     String login = reader.readLine();
-                    String pass = reader.readLine();
+                    String password = reader.readLine();
                     String token = createAuthToken();
                     System.out.println("__________________");
                     System.out.println("login = " + login);
-                    System.out.println("password = " + pass);
+                    System.out.println("password = " + password);
                     System.out.println("token = " + token);
-                    Integer userId = getUserIdFromTable(login, pass);
+                    Integer userId = getUserIdFromTable(login, password);
                     if (userId == null) {
                         System.out.println("Invalid login or password!");
-                        writer.println("Invalid login or password!");
+                        String answer = "Invalid login or password!";
+                        writer.println(answer);
                         writer.flush();
                     } else {
                         System.out.println("userId = " + userId);
                         System.out.println("------------------");
-                        boolean tryCreateNewTokenInTable = insertTokenInDb(userId, token);
-
+                        boolean tryCreateNewTokenInTableResult = insertTokenInDb(userId, token);
                         System.out.println("User with login " + login + " authorized ");
-
-                        writer.println(tryCreateNewTokenInTable);
+                        writer.println(tryCreateNewTokenInTableResult);
                         String userIdStr = userId.toString();
                         writer.println(userIdStr);
                         writer.println(token);
                         writer.flush();
                     }
-                    break;
                 }
-
-                case "/delete": {
-                    String login = reader.readLine();
-                    boolean deleteUser = deleteUserFromDb(login);
-                    writer.println(deleteUser);
-                    writer.flush();
-                    System.out.println("User " + login + " deleted");
-                    break;
-                }
-
-                case "/sendMessage": {
-                    String userToSendMessage = reader.readLine();
+                case "/sendMessage" -> {
+                    // params
+                    String userIdToSendMessageStr = reader.readLine();
+                    int userIdToSendMessage = Integer.parseInt(userIdToSendMessageStr);
                     String textMessage = reader.readLine();
                     String token = reader.readLine();
-                    System.out.println("read user message and token" + userToSendMessage + "  " + textMessage + ", " + token);
+                    System.out.println("read user message and token" + userIdToSendMessage + "  " + textMessage + ", " + token);
+
+                    // body
                     int fromUserId = getUserIdFromSendMessage(token);
-                    if (!isUserExisted(userToSendMessage)) {
+                    if (!isUserExisted(userIdToSendMessage)) {
                         System.out.println("User not found");
                         boolean userExisted = false;
                         writer.println(userExisted);
@@ -144,28 +129,25 @@ public class ServerStarter {
                         break;
                     }
                     if (checkedAuthToken(token)) {
-                        int toUserId = getUserIdForSendMessage(userToSendMessage);
+                        int toUserId = getUserIdForSendMessage(userIdToSendMessage);
                         System.out.println("Message sent");
                         boolean sendMessage = addMessageToDb(fromUserId, toUserId, textMessage, System.currentTimeMillis());
                         writer.println(sendMessage);
                         writer.flush();
-                        System.out.println("User " + userToSendMessage + " received message");
+                        System.out.println("User " + userIdToSendMessageStr + " received message");
                     } else {
                         System.out.println("User not authorized!");
                         String answer = "User not authorized! Please enter login and password, and try again";
                         writer.println(answer);
                         writer.flush();
                     }
-                    break;
                 }
-
-                case "/readMessages": {
+                case "/readMessages" -> {
                     long sinceDate = Long.parseLong(reader.readLine());
                     String token = reader.readLine();
                     System.out.println("read messages sinceDate token " + sinceDate + " " + token);
                     Integer userId = getUserIdByAuthToken(token);
                     System.out.println("userId = " + userId);
-                    // boolean authTokenOk = checkedAuthToken(token);
                     if (userId != null) {
                         writer.println(true);
                         ArrayList<Message> messages = getMessages(userId, sinceDate);
@@ -185,15 +167,14 @@ public class ServerStarter {
                         writer.println(answer);
                         writer.flush();
                     }
-                    break;
                 }
-
-                case "/getUserById": {
-                    writer.flush();
+                case "/getUserById" -> {
                     String userIdStr = reader.readLine();
                     int userId = Integer.parseInt(userIdStr);
+
                     String token = reader.readLine();
                     System.out.println("Token is " + checkedAuthToken(token));
+
                     if (checkedAuthToken(token)) {
                         String getUsernameById = getUserNameById(userId);
                         System.out.println("Username: " + getUsernameById);
@@ -206,18 +187,17 @@ public class ServerStarter {
                             writer.flush();
                         }
                     }
-                    break;
                 }
-
-                case "/getUserByLogin": {
-                    writer.flush();
-                    String userName = reader.readLine();
+                case "/getUserByLogin" -> {
+                    String login = reader.readLine();
                     String token = reader.readLine();
                     if (checkedAuthToken(token)) {
-                        String getUserNameByLogin = getUserNameByLogin(userName);
+                        String getUserNameByLogin = getUserNameByLogin(login);
                         System.out.println("Username: " + getUserNameByLogin);
+                        System.out.println("User Id: " + getUserIdByLogin(login));
                         if (getUserNameByLogin != null) {
-                            writer.println(getUserNameByLogin(userName));
+                            writer.println(getUserNameByLogin(login));
+                            writer.println(getUserIdByLogin(login));
                             writer.flush();
                         } else {
                             String answer = "User not found";
@@ -225,17 +205,33 @@ public class ServerStarter {
                             writer.flush();
                         }
                     }
-                    break;
                 }
             }
         }
     }
 
+    private static Integer getUserIdByLogin(String login) {
+        Integer userId = null;
+        String query = "select user_id from users where name = ?";
+        try {
+            PreparedStatement preparedStatement = dbConnection.prepareStatement(query);
+            preparedStatement.setString(1,login);
+            ResultSet resultSet = preparedStatement.executeQuery();
+            while (resultSet.next()) {
+                userId = resultSet.getInt(1);
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return userId;
+    }
+
     private static ArrayList<Message> getMessages(int toUserId, long date) {
         try {
             ArrayList<Message> result = new ArrayList<>();
+            String query = "select * from messages where to_user_id = \"" + toUserId + "\" and date >= " + date + "";
             ResultSet resultSet = dbConnection.createStatement()
-                    .executeQuery("select * from messages where to_user_id = \"" + toUserId + "\" and date >= " + date + "");
+                    .executeQuery(query);
             while (resultSet.next()) {
                 Message m = new Message();
                 m.messageId = resultSet.getInt("message_id");
@@ -255,8 +251,9 @@ public class ServerStarter {
     private static int getUserIdFromSendMessage(String token) {
         int fromUserId = 0;
         try {
+            String query = "select user_id from tokens where auth_token = \"" + token + "\"";
             ResultSet resultSet = dbConnection.createStatement()
-                    .executeQuery("select user_id from tokens where auth_token = \"" + token + "\"");
+                    .executeQuery(query);
             while (resultSet.next()) {
                 fromUserId = resultSet.getInt(1);
             }
@@ -271,8 +268,9 @@ public class ServerStarter {
     private static String getUserNameByLogin(String userName) {
         String userNameByLogin = null;
         try {
+            String query = "select name from users where name = \"" + userName + "\"";
             ResultSet resultSet = dbConnection.createStatement()
-                    .executeQuery("select name from users where name = \"" + userName + "\"");
+                    .executeQuery(query);
             while (resultSet.next()) {
                 userNameByLogin = resultSet.getString(1);
             }
@@ -286,9 +284,9 @@ public class ServerStarter {
     private static String getUserNameById(int userId) {
         String userNameById = null;
         try {
-            String sqlQuery = "select name from users where user_id = " + userId;
+            String query = "select name from users where user_id = " + userId;
             ResultSet resultSet = dbConnection.createStatement()
-                    .executeQuery(sqlQuery);
+                    .executeQuery(query);
             while (resultSet.next()) {
                 userNameById = resultSet.getString(1);
             }
@@ -301,13 +299,12 @@ public class ServerStarter {
 
     private static Integer getUserIdByAuthToken(String token) {
         Integer getUserByToken = null;
-        String sql = "select user_id from tokens where auth_token = ?";
+        String query = "select user_id from tokens where auth_token = ?";
         try {
-            PreparedStatement preparedStatement = dbConnection.prepareStatement(sql);
+            PreparedStatement preparedStatement = dbConnection.prepareStatement(query);
             preparedStatement.setString(1, token);
             ResultSet resultSet = preparedStatement
-
-                    .executeQuery(sql);
+                    .executeQuery();
             while (resultSet.next()) {
                 getUserByToken = resultSet.getInt(1);
             }
@@ -320,7 +317,8 @@ public class ServerStarter {
 
     private static boolean checkedAuthToken(String token) {
         try {
-            ResultSet resultSet = dbConnection.createStatement().executeQuery("select * from tokens where auth_token = \"" + token + "\"  ");
+            String query = "select * from tokens where auth_token = \"" + token + "\"";
+            ResultSet resultSet = dbConnection.createStatement().executeQuery(query);
             boolean isExisted = resultSet.next();
             resultSet.close();
             return isExisted;
@@ -329,11 +327,12 @@ public class ServerStarter {
         }
     }
 
-    private static int getUserIdForSendMessage(String userToSendMessage) {
+    private static int getUserIdForSendMessage(int userIdToSendMessage) {
         int toUserId = 0;
         try {
+            String query = "select * from users where user_id = " + userIdToSendMessage;
             ResultSet resultSet = dbConnection.createStatement()
-                    .executeQuery("select * from users where name = \"" + userToSendMessage + "\"");
+                    .executeQuery(query);
             while (resultSet.next()) {
                 toUserId = resultSet.getInt(1);
             }
@@ -360,20 +359,12 @@ public class ServerStarter {
         return true;
     }
 
-    private static boolean deleteUserFromDb(String login) {
-        try {
-            dbConnection.createStatement().executeUpdate("delete from users where name = \"" + login + "\" ");
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-        return true;
-    }
-
     private static Integer getUserIdFromTable(String login, String pass) {
         Integer userId = null;
         try {
+            String query = "select * from users where name = \"" + login + "\" and password = \"" + pass + "\"";
             ResultSet resultSet = dbConnection.createStatement()
-                    .executeQuery("select * from users where name = \"" + login + "\" and password = \"" + pass + "\"");
+                    .executeQuery(query);
             while (resultSet.next()) {
                 userId = resultSet.getInt(1);
             }
@@ -402,24 +393,35 @@ public class ServerStarter {
             return false;
         }
         try {
+            String query = "insert into users (name, password) values (\"" + name + "\",\"" + password + "\")";
             dbConnection.createStatement()
-                    .execute("insert into users (name, password) values (\"" + name + "\",\"" + password + "\")"
-                    );
+                    .execute(query);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
         return true;
     }
 
+    private static boolean isUserExisted(int userId) {
+        try {
+            String query = "select * from users where user_id =" + userId;
+            ResultSet resultSet = dbConnection.createStatement()
+                    .executeQuery(query);
+            boolean isExisted = resultSet.next();
+            resultSet.close();
+            return isExisted;
+        } catch (Throwable e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     private static boolean isUserExisted(String name) {
         try {
+            String query = "select * from users where name = \"" + name + "\"";
             ResultSet resultSet = dbConnection.createStatement()
-                    .executeQuery("select * from users where name = \"" + name + "\"  ");
-
+                    .executeQuery(query);
             boolean isExisted = resultSet.next();
-
             resultSet.close();
-
             return isExisted;
         } catch (Throwable e) {
             throw new RuntimeException(e);
