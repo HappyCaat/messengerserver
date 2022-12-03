@@ -229,7 +229,7 @@ public class ServerStarter {
     private static ArrayList<Message> getMessages(int toUserId, long date) {
         try {
             ArrayList<Message> result = new ArrayList<>();
-            String query = "select * from messages where to_user_id = \"" + toUserId + "\" and date >= " + date + "";
+            String query = "select * from messages where (to_user_id = \"" + toUserId + "\" or from_user_id = \"" + toUserId + "\") and date >= " + date + "";
             ResultSet resultSet = dbConnection.createStatement()
                     .executeQuery(query);
             while (resultSet.next()) {
@@ -440,7 +440,7 @@ public class ServerStarter {
     }
 
     private static String getDate() {
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy.MM.dd");
+        SimpleDateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss z");
         return dateFormat.format(new Date());
     }
 }
